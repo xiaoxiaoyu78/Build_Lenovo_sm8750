@@ -73,7 +73,7 @@ on:
 jobs:
   build:
     name: Build_${{ github.event.inputs.kernel_version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       KERNEL_VERSION: ${{ github.event.inputs.kernel_version }}
@@ -241,7 +241,7 @@ jobs:
             const cacheVariant = process.env.CACHE_VARIANT || '';
             let selected = null;
 
-            const escape_regex = (value) => value.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
+            const escape_regex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             // 优先精确匹配带变体的资产，其次匹配不带变体的
             const variantExactName = `ccache-${deviceName}${cacheVariant}.tar.zst`;
             const plainExactName = `ccache-${deviceName}.tar.zst`;
@@ -434,6 +434,14 @@ jobs:
           cd ./common
           git apply -p1 < 001-lz4.patch || true
           patch -p1 < 002-zstd.patch || true
+          
+      - name: 🔧 Apply Unicode bypass fix (应用Unicode bypass修复补丁)
+        run: |
+          echo "正在应用 Unicode bypass 修复补丁（fs/unicode 上游修复，来源 ITxiao6666/Unicode_bypass_Fix）..."
+          cd kernel_workspace/common
+          wget -q "https://raw.githubusercontent.com/ITxiao6666/Unicode_bypass_Fix/refs/heads/main/unicode-bypass_fix_5.10-6.12%E9%80%9A%E7%94%A8.patch" -O unicode_bypass_fix.patch
+          patch -p1 -N -F 3 < unicode_bypass_fix.patch && echo "✓ Unicode bypass 修复补丁应用成功" || echo "⚠️ Unicode bypass 补丁未应用（源码可能已包含该修复），继续构建"
+          rm -f unicode_bypass_fix.patch
           
       - name: 🛠 Set Baseband-guard (配置BBG基带守护)
         if: ${{ env.ENABLE_BBG == 'true' }}
@@ -824,7 +832,7 @@ jobs:
     name: Upload Re-Kernel Module
     if: ${{ github.event.inputs.enable_ReKernel == 'true' }}
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: 🔎 Find Re-Kernel module zip (查找Re-Kernel最新模块并下载)
         id: download-rekernel
@@ -844,7 +852,7 @@ jobs:
               repo,
             });
             core.info(`最新版本: ${release.data.tag_name}`);
-            const escapedKernel = kernelMajor.replace(/\./g, '\\.');
+            const escapedKernel = kernelMajor.replace(/\./g, '\\\.');
             const pattern66 = new RegExp(`^Re-Kernel-v([\\d.]+)-${escapedKernel}\\.zip$`);
             const patternAny = new RegExp(`^Re-Kernel.*\\.zip$`, 'i');
 
