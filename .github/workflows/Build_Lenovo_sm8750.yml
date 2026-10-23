@@ -463,6 +463,18 @@ jobs:
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           echo "ksuver=$KSU_VERSION" >> $GITHUB_OUTPUT
 
+      - name: 🩹 Fix ReSukiSU susfs_compat (移除 susfs_compat.mk 无条件 error 占位，恢复 SUSFS 构建)
+        run: |
+          cd kernel_workspace/KernelSU/kernel/tools
+          echo "修复前 susfs_compat.mk 尾部："
+          tail -6 susfs_compat.mk
+          # 移除上游占位性的无条件 $(error)，它会让任何 SUSFS 构建（无论是否启用）直接停止
+          sed -i '/^\$(error Please wait susfs update\.)/d' susfs_compat.mk
+          sed -i '/Please wait simonpunk update/d' susfs_compat.mk
+          echo "修复后 susfs_compat.mk 尾部："
+          tail -6 susfs_compat.mk
+          echo "✓ 已移除 susfs_compat.mk 占位 error"
+
       - name: 🔧 Set up SUSFS (配置 SUSFS)
         if: ${{ env.ENABLE_SUSFS == 'true' }}
         run: |
@@ -852,7 +864,7 @@ jobs:
               repo,
             });
             core.info(`最新版本: ${release.data.tag_name}`);
-            const escapedKernel = kernelMajor.replace(/\./g, '\\\.');
+            const escapedKernel = kernelMajor.replace(/\./g, '\\\\.');
             const pattern66 = new RegExp(`^Re-Kernel-v([\\d.]+)-${escapedKernel}\\.zip$`);
             const patternAny = new RegExp(`^Re-Kernel.*\\.zip$`, 'i');
 
