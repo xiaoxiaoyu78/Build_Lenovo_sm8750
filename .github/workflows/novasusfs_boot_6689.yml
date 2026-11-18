@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -141,26 +141,38 @@ jobs:
           cd kernel_workspace/common
           make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig 2>&1 | tee /tmp/build.log | tail -20
           make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image >> /tmp/build.log 2>&1
-          ls -l out/arch/arm64/boot/Image
+          echo "BUILD_STEP_DONE" | tee -a /tmp/build.log
+          ls -l out/arch/arm64/boot/Image out/.config
 
       - name: Self check (SUSFS linked in)
         run: |
           set -eux
+          mkdir -p logs
           cd kernel_workspace/common
           CFG=out/.config
           IMG=out/arch/arm64/boot/Image
-          grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KALLSYMS_ALL=' "$CFG"
-          echo '--- banner ---'
-          strings -n 12 "$IMG" | grep -m1 '^Linux version ' || true
-          echo '--- susfs init string ---'
-          strings -n 8 "$IMG" | grep -m2 'susfs is initialized' || { echo 'ERROR: susfs not linked into Image'; exit 1; }
-          echo '--- manager cert ---'
+          {
+            echo '=== config ==='
+            ls -l "$CFG"
+            grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KSU_SUSFS_ENABLE_LOG=|CONFIG_KALLSYMS_ALL=' "$CFG"
+            echo '=== banner ==='
+            strings -n 12 "$IMG" | grep -m1 '^Linux version ' || true
+            echo '=== susfs strings ==='
+            strings -n 6 "$IMG" | grep -i 'susfs' | head -20 || true
+            echo '=== apk_sign.o ==='
+            find out -path '*kernelsu*' -name 'apk_sign.o' | head -5
+            echo '=== image magic ==='
+            od -An -tx1 -j56 -N4 "$IMG" | tr -d ' \n'; echo
+          } 2>&1 | tee "$GITHUB_WORKSPACE/logs/selfcheck.txt"
+          cp -f "$CFG" "$GITHUB_WORKSPACE/logs/config.txt"
+          echo '--- hard asserts ---'
+          grep -qx 'CONFIG_KSU_SUSFS=y' "$CFG"
+          strings -n 6 "$IMG" | grep -q 'susfs is initialized'
           OBJ=$(find out -path '*kernelsu*' -name 'apk_sign.o' | head -n1)
-          echo "OBJ=$OBJ"
-          strings "$OBJ" | grep -i "$MGR_CERT_HASH"
-          echo '--- image sanity ---'
-          echo "magic@0x38 = $(od -An -tx1 -j56 -N4 "$IMG" | tr -d ' \n')"
+          test -n "$OBJ"
+          strings "$OBJ" | grep -qi "$MGR_CERT_HASH"
           [ "$(od -An -tx1 -j56 -N4 "$IMG" | tr -d ' \n')" = "41524d64" ]
+          echo "SELFCHECK_OK" | tee -a "$GITHUB_WORKSPACE/logs/selfcheck.txt"
 
       - name: Repack and sign boot (AOSP testkey)
         run: |
@@ -184,16 +196,7 @@ jobs:
           ls -l boot.img
           sha256sum boot.img
           cp boot.img "$GITHUB_WORKSPACE/boot_6.6.89_nova_susfs_builtin_signed.img"
-
-      - name: Collect logs
-        if: always()
-        run: |
-          mkdir -p logs
-          cp -f /tmp/build.log logs/build.log 2>/dev/null || true
-          cp -f /tmp/p50.log logs/p50.log 2>/dev/null || true
-          cp -f kernel_workspace/common/out/.config logs/.config 2>/dev/null || true
-          cp -f kernel_workspace/common/50_add_susfs_in_gki-android15-6.6.patch logs/ 2>/dev/null || true
-          tail -60 logs/build.log 2>/dev/null || true
+          echo "REPACK_OK" | tee "$GITHUB_WORKSPACE/logs/repack.txt"
 
       - name: Upload boot
         if: success()
@@ -202,13 +205,22 @@ jobs:
           name: Boot_6.6.89_Nova_SUSFS_OfficialMgr_AOSP_Signed
           path: |
             boot_6.6.89_nova_susfs_builtin_signed.img
+            logs/
             kernel_workspace/common/out/arch/arm64/boot/Image
             kernel_workspace/common/out/.config
 
-      - name: Upload logs
+      - name: Persist logs to branch (always)
         if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: build-logs
-          path: logs/
-          if-no-files-found: warn
+        run: |
+          set -x
+          mkdir -p logs
+          cp -f /tmp/build.log logs/build.log || true
+          cp -f /tmp/p50.log logs/p50.log || true
+          ls -l kernel_workspace/common/out/ 2>/dev/null | head -30 > logs/out_listing.txt || true
+          echo "exit_code_if_any": > logs/failure_info.txt
+          git config user.name 'ci-bot'
+          git config user.email 'ci-bot@users.noreply.github.com'
+          git checkout -B ci-logs
+          git add -f logs
+          git commit -m "ci logs run ${{ github.run_number }}" || true
+          git push -f origin ci-logs || true
