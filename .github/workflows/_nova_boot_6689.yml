@@ -1,6 +1,6 @@
 name: Nova_Boot_6689
 
-# 6.6.89 + SukiSU-Nova (Fork) 内核源码 + SUSFS，编译并 AOSP 签名 boot
+# 6.6.89 + SukiSU-Nova(Fork) 内核源码 + CONFIG_KPM（Nova 的 SUSFS 以 KPM 模块形式提供）
 on:
   push:
     branches: [main]
@@ -22,7 +22,6 @@ jobs:
       DEFAULT_SUFFIX: '-android15-8-g14220ae4ce65-ab13680582-4k'
       KERNEL_TIME: 'Mon Jun 23 07:30:57 UTC 2025'
       KSU_REPO: 'https://github.com/xiaoxiaoyu78/SukiSU-Nova.git'
-      KSU_VER_BASE: '30996'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -48,46 +47,21 @@ jobs:
           unzip -q build-tools.zip
           rm -f build-tools.zip
           rm -f common/android/abi_gki_protected_exports_* || true
-          while IFS= read -r -d '' f; do
-            sed -i 's/ -dirty//g' "$f"
-            sed -i '$i res=$(echo "$res" | sed '\''s/-dirty//g'\'')' "$f"
-          done < <(grep -rlZ 'setlocalversion' common/scripts common/Makefile 2>/dev/null || true)
           echo "source ready"
           du -sh common | tail -n1
 
       - name: Set up SukiSU-Nova kernel source
-        id: nova
         run: |
           set -eux
           cd kernel_workspace
           git clone "${KSU_REPO}" ./KernelSU
-          cd ./KernelSU
-          git log -1 --format='%H %s'
-          cd ..
+          git -C ./KernelSU log -1 --format='%H %s'
           ln -sf ../../KernelSU/kernel ./common/drivers/kernelsu
           grep -q 'kernelsu' ./common/drivers/Makefile || printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> ./common/drivers/Makefile
           grep -q 'drivers/kernelsu/Kconfig' ./common/drivers/Kconfig || sed -i '/endmenu/i source "drivers/kernelsu/Kconfig"' ./common/drivers/Kconfig
-          COMMITS=$(git -C ./KernelSU rev-list --count HEAD)
-          KSU_VERSION=$((KSU_VER_BASE + COMMITS))
-          echo "KSUVER=$KSU_VERSION" >> "$GITHUB_ENV"
-          echo "KSU_COMMITS=$COMMITS" >> "$GITHUB_OUTPUT"
-          echo "nova kernel source ready, version=$KSU_VERSION (commits=$COMMITS)"
+          echo "nova kernel source linked"
           ls -l ./common/drivers/kernelsu
           tail -3 ./common/drivers/Makefile
-
-      - name: Set up SUSFS
-        run: |
-          set -eux
-          cd kernel_workspace
-          git clone --depth=1 https://github.com/cctv18/susfs4oki.git susfs4ksu -b oki-android15-6.6
-          wget https://raw.githubusercontent.com/cctv18/oppo_oplus_realme_sm8750/main/other_patch/69_hide_stuff.patch -O ./common/69_hide_stuff.patch
-          cp ./susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./common/
-          cp ./susfs4ksu/kernel_patches/fs/* ./common/fs/
-          cp ./susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
-          cd ./common
-          patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-          patch -p1 -N -F 3 < 69_hide_stuff.patch || true
-          echo "susfs patches applied"
 
       - name: Configure gki_defconfig
         run: |
@@ -95,21 +69,9 @@ jobs:
           cd kernel_workspace
           DEFCONFIG=./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SUS_MAP=y" >> "$DEFCONFIG"
+          echo "CONFIG_KPM=y" >> "$DEFCONFIG"
+          echo "CONFIG_KALLSYMS=y" >> "$DEFCONFIG"
+          echo "CONFIG_KALLSYMS_ALL=y" >> "$DEFCONFIG"
           echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG"
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG"
           echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y" >> "$DEFCONFIG"
@@ -118,7 +80,7 @@ jobs:
           sudo sed -i "s/-4k/$ESCAPED_SUFFIX/g" "$DEFCONFIG"
           sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
           echo "defconfig ready"
-          grep -n 'CONFIG_KSU' "$DEFCONFIG" | head -n 5
+          grep -n 'CONFIG_KSU\|CONFIG_KPM' "$DEFCONFIG"
 
       - name: Build kernel Image
         run: |
@@ -138,7 +100,7 @@ jobs:
           make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
           make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
           ls -l out/arch/arm64/boot/Image
-          ccache -s | head -n 10
+          grep -E 'CONFIG_KSU=|CONFIG_KPM=|CONFIG_KALLSYMS_ALL=' out/.config
 
       - name: Repack and sign boot (AOSP testkey)
         run: |
@@ -165,7 +127,7 @@ jobs:
       - name: Upload boot
         uses: actions/upload-artifact@v5
         with:
-          name: Boot_6.6.89_SukiSU_Nova_SUSFS_AOSP_Signed
+          name: Boot_6.6.89_SukiSU_Nova_KPM_AOSP_Signed
           path: |
             kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/boot.img
             kernel_workspace/common/out/arch/arm64/boot/Image
