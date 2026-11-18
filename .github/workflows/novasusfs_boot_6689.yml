@@ -126,7 +126,7 @@ jobs:
 
       - name: Build kernel Image
         run: |
-          set -eux
+          set -euxo pipefail
           WORKDIR="$(pwd)"
           export PATH="$WORKDIR/kernel_workspace/clang18/bin:$WORKDIR/kernel_workspace/build-tools/bin:/usr/lib/ccache:$PATH"
           clang --version | head -n1
@@ -139,8 +139,8 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="$KERNEL_TIME"
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
           cd kernel_workspace/common
-          make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
-          make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image 2>&1 | tail -80
+          make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig 2>&1 | tee /tmp/build.log | tail -20
+          make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image >> /tmp/build.log 2>&1
           ls -l out/arch/arm64/boot/Image
 
       - name: Self check (SUSFS linked in)
@@ -185,7 +185,18 @@ jobs:
           sha256sum boot.img
           cp boot.img "$GITHUB_WORKSPACE/boot_6.6.89_nova_susfs_builtin_signed.img"
 
+      - name: Collect logs
+        if: always()
+        run: |
+          mkdir -p logs
+          cp -f /tmp/build.log logs/build.log 2>/dev/null || true
+          cp -f /tmp/p50.log logs/p50.log 2>/dev/null || true
+          cp -f kernel_workspace/common/out/.config logs/.config 2>/dev/null || true
+          cp -f kernel_workspace/common/50_add_susfs_in_gki-android15-6.6.patch logs/ 2>/dev/null || true
+          tail -60 logs/build.log 2>/dev/null || true
+
       - name: Upload boot
+        if: success()
         uses: actions/upload-artifact@v5
         with:
           name: Boot_6.6.89_Nova_SUSFS_OfficialMgr_AOSP_Signed
@@ -193,3 +204,11 @@ jobs:
             boot_6.6.89_nova_susfs_builtin_signed.img
             kernel_workspace/common/out/arch/arm64/boot/Image
             kernel_workspace/common/out/.config
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: build-logs
+          path: logs/
+          if-no-files-found: warn
