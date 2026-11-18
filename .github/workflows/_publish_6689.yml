@@ -1,0 +1,29 @@
+name: _publish_6689
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/_publish_6689.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Download artifacts and publish release
+        run: |
+          set -x
+          gh run download 44270962314 -R "$REPO" -D artifacts
+          find artifacts -type f -size +1M | head -20
+          gh release create boot-35262-6.6.89 -R "$REPO" \
+            --title "Boot 35262 6.6.89 ReSukiSU + SUSFS" \
+            --notes "ReSukiSU(BakaSU) main 7b65bde -> KSUVER 35262；SUSFS 开启、KPM 关闭；签名基底为 ZUXOS 6.6.118 stock boot" \
+            $(find artifacts -type f -size +1M)
