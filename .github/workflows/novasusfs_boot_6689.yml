@@ -157,20 +157,19 @@ jobs:
             grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KSU_SUSFS_ENABLE_LOG=|CONFIG_KALLSYMS_ALL=' "$CFG"
             echo '=== banner ==='
             strings -n 12 "$IMG" | grep -m1 '^Linux version ' || true
-            echo '=== susfs strings ==='
-            strings -n 6 "$IMG" | grep -i 'susfs' | head -20 || true
-            echo '=== apk_sign.o ==='
-            find out -path '*kernelsu*' -name 'apk_sign.o' | head -5
+            echo '=== susfs init string ==='
+            strings -n 6 "$IMG" | grep -m2 'susfs is initialized' || true
+            echo '=== manager cert hash in Image ==='
+            strings -n 6 "$IMG" | grep -c "$MGR_CERT_HASH" || true
             echo '=== image magic ==='
             od -An -tx1 -j56 -N4 "$IMG" | tr -d ' \n'; echo
           } 2>&1 | tee "$GITHUB_WORKSPACE/logs/selfcheck.txt"
           cp -f "$CFG" "$GITHUB_WORKSPACE/logs/config.txt"
           echo '--- hard asserts ---'
+          grep -qx 'CONFIG_KSU=y' "$CFG"
           grep -qx 'CONFIG_KSU_SUSFS=y' "$CFG"
           strings -n 6 "$IMG" | grep -q 'susfs is initialized'
-          OBJ=$(find out -path '*kernelsu*' -name 'apk_sign.o' | head -n1)
-          test -n "$OBJ"
-          strings "$OBJ" | grep -qi "$MGR_CERT_HASH"
+          strings -n 6 "$IMG" | grep -q "$MGR_CERT_HASH"
           [ "$(od -An -tx1 -j56 -N4 "$IMG" | tr -d ' \n')" = "41524d64" ]
           echo "SELFCHECK_OK" | tee -a "$GITHUB_WORKSPACE/logs/selfcheck.txt"
 
@@ -179,6 +178,7 @@ jobs:
           set -eux
           cd kernel_workspace
           wget -q "https://github.com/showdo/AOSP-Testkey-BootSigner/archive/refs/heads/main.tar.gz" -O boot_avb_tool.tar.gz
+          mkdir -p "$GITHUB_WORKSPACE/logs"
           mkdir -p boot_avb_tool
           tar -xzf boot_avb_tool.tar.gz -C boot_avb_tool
           rm -f boot_avb_tool.tar.gz
@@ -189,14 +189,14 @@ jobs:
           cp ./stock-boot/boot.img ./boot.img
           rm -rf stock-boot stock-boot.zip
           chmod +x ./tools/magiskboot
-          ./tools/magiskboot repack boot.img
+          ./tools/magiskboot repack boot.img 2>&1 | tee "$GITHUB_WORKSPACE/logs/repack.txt"
           rm -f ./boot.img kernel
           mv ./new-boot.img ./boot.img
-          python3 rebuild_avb.py --chained-mode || python3 rebuild_avb.py
-          ls -l boot.img
-          sha256sum boot.img
+          (python3 rebuild_avb.py --chained-mode 2>&1 || python3 rebuild_avb.py 2>&1) | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
+          ls -l boot.img | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
+          sha256sum boot.img | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
           cp boot.img "$GITHUB_WORKSPACE/boot_6.6.89_nova_susfs_builtin_signed.img"
-          echo "REPACK_OK" | tee "$GITHUB_WORKSPACE/logs/repack.txt"
+          echo "REPACK_OK" | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
 
       - name: Upload boot
         if: success()
@@ -217,7 +217,6 @@ jobs:
           cp -f /tmp/build.log logs/build.log || true
           cp -f /tmp/p50.log logs/p50.log || true
           ls -l kernel_workspace/common/out/ 2>/dev/null | head -30 > logs/out_listing.txt || true
-          echo "exit_code_if_any": > logs/failure_info.txt
           git config user.name 'ci-bot'
           git config user.email 'ci-bot@users.noreply.github.com'
           git checkout -B ci-logs
