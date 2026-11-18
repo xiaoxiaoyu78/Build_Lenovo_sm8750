@@ -1,0 +1,195 @@
+name: Nova_Boot_6689_SUSFS
+
+# 6.6.89 + SukiSU-Nova `builtin` 分支（in-tree SUSFS 胶水，Kconfig 自带 CONFIG_KSU_SUSFS）
+# + susfs4ksu gki-android15-6.6 内核侧补丁（fs/susfs.c / include/linux/susfs*.h / 50_add_susfs）
+# 不启用 KPM；管理器签名期望保持 builtin 默认（官方 com.sukisu.nova 35025 直接配对）
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/novasusfs_boot_6689.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build_Nova_6.6.89_SUSFS
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      KERNEL_VERSION: '6.6.89'
+      os_patch_level: '2025-06'
+      DEFAULT_SUFFIX: '-android15-8-g14220ae4ce65-ab13680582-4k'
+      KERNEL_TIME: 'Mon Jun 23 07:30:57 UTC 2025'
+      KSU_REPO: 'https://github.com/SukiSU-Nova/SukiSU-Nova.git'
+      KSU_BRANCH: 'builtin'
+      SUSFS_REPO: 'https://gitlab.com/simonpunk/susfs4ksu.git'
+      SUSFS_BRANCH: 'gki-android15-6.6'
+      MGR_CERT_HASH: '947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install deps and fetch kernel source + toolchain
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends binutils python-is-python3 libssl-dev libelf-dev dos2unix p7zip-full zstd ccache
+          rm -rf kernel_workspace
+          mkdir kernel_workspace
+          cd kernel_workspace
+          aria2c -s16 -x16 -k1M "https://github.com/showdo/Build_Lenovo_sm8750/releases/download/common/${os_patch_level}.tar.gz" -o common.tar.gz
+          mkdir -p common
+          tar -xzf common.tar.gz -C common
+          rm -f common.tar.gz
+          mkdir -p clang18
+          aria2c -s16 -x16 -k1M https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang18-r510928/clang-r510928.zip -o clang.zip
+          unzip -q clang.zip -d clang18
+          rm -f clang.zip
+          aria2c -s16 -x16 -k1M https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang18-r510928/build-tools.zip -o build-tools.zip
+          unzip -q build-tools.zip
+          rm -f build-tools.zip
+          rm -f common/android/abi_gki_protected_exports_* || true
+          head -3 common/Makefile
+          echo "source ready"
+          du -sh common | tail -n1
+
+      - name: Set up SukiSU-Nova builtin (with in-tree SUSFS glue)
+        run: |
+          set -eux
+          cd kernel_workspace
+          git clone --depth=1 -b "$KSU_BRANCH" "$KSU_REPO" ./KernelSU
+          git -C ./KernelSU log -1 --format='%H %s'
+          for sym in KSU KSU_SUSFS; do
+            grep -q "^config $sym$" ./KernelSU/kernel/Kconfig || { echo "ERROR: builtin lacks config $sym"; exit 1; }
+          done
+          echo '--- manager cert expectation (must stay default/official) ---'
+          grep -n '947ae944' ./KernelSU/kernel/manager/apk_sign.c
+          ln -sf ../../KernelSU/kernel ./common/drivers/kernelsu
+          grep -q 'kernelsu' ./common/drivers/Makefile || printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> ./common/drivers/Makefile
+          grep -q 'drivers/kernelsu/Kconfig' ./common/drivers/Kconfig || sed -i '/endmenu/i source "drivers/kernelsu/Kconfig"' ./common/drivers/Kconfig
+          ls -l ./common/drivers/kernelsu
+          grep -n 'kernelsu' ./common/drivers/Kconfig ./common/drivers/Makefile
+
+      - name: Apply susfs4ksu kernel patches
+        run: |
+          set -eux
+          cd kernel_workspace
+          for i in 1 2 3; do
+            rm -rf susfs4ksu
+            if git clone --depth=1 -b "$SUSFS_BRANCH" "$SUSFS_REPO" susfs4ksu; then ok=1; break; fi
+            echo "clone attempt $i failed"; sleep 10
+          done
+          test "${ok:-0}" = 1 || { echo 'ERROR: susfs4ksu clone failed'; exit 1; }
+          git -C susfs4ksu log -1 --format='%H %s'
+          P="susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch"
+          test -f "$P" || { echo "ERROR: $P missing"; exit 1; }
+          cp -v susfs4ksu/kernel_patches/fs/* common/fs/
+          cp -v susfs4ksu/kernel_patches/include/linux/* common/include/linux/
+          cp -v "$P" common/
+          cd common
+          patch -p1 -F 3 --forward < "$(basename "$P")" > /tmp/p50.log 2>&1 || true
+          tail -20 /tmp/p50.log
+          REJS=$(find . -maxdepth 3 -name '*.rej' | sort)
+          if [ -n "$REJS" ]; then
+            echo '--- rejects ---'; echo "$REJS"
+            for f in $REJS; do echo "### $f"; head -40 "$f"; done
+            echo 'ERROR: SUSFS patch left rejects'; exit 1
+          fi
+          echo '--- susfs wiring ---'
+          grep -q susfs fs/namei.c
+          grep -q susfs fs/namespace.c
+          grep -q 'CONFIG_KSU_SUSFS' fs/Makefile
+          test -f include/linux/susfs.h
+          test -f include/linux/susfs_def.h
+          test -f fs/susfs.c
+          grep -q 'susfs_init' fs/susfs.c
+          grep -m1 'SUSFS_VERSION' include/linux/susfs.h
+
+      - name: Configure gki_defconfig
+        run: |
+          set -eux
+          cd kernel_workspace
+          DEFCONFIG=./common/arch/arm64/configs/gki_defconfig
+          for opt in CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KALLSYMS=y CONFIG_KALLSYMS_ALL=y \
+                     CONFIG_TMPFS_XATTR=y CONFIG_TMPFS_POSIX_ACL=y CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y; do
+            grep -qx "$opt" "$DEFCONFIG" || echo "$opt" >> "$DEFCONFIG"
+          done
+          sudo sed -i 's/check_defconfig//' ./common/build.config.gki
+          ESCAPED_SUFFIX=$(printf '%s\n' "$DEFAULT_SUFFIX" | sed 's:[\/&]:\\&:g')
+          sudo sed -i "s/-4k/$ESCAPED_SUFFIX/g" "$DEFCONFIG"
+          sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
+          grep -n 'CONFIG_KSU\|CONFIG_KALLSYMS_ALL\|LOCALVERSION' "$DEFCONFIG"
+
+      - name: Build kernel Image
+        run: |
+          set -eux
+          WORKDIR="$(pwd)"
+          export PATH="$WORKDIR/kernel_workspace/clang18/bin:$WORKDIR/kernel_workspace/build-tools/bin:/usr/lib/ccache:$PATH"
+          clang --version | head -n1
+          export CCACHE_DIR="$HOME/.ccache_6689susfs"
+          export CCACHE_MAXSIZE=6G
+          export CCACHE_COMPILERCHECK=none
+          export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          export CCACHE_NOHASHDIR=true
+          export CCACHE_NOHARDLINK=true
+          export KBUILD_BUILD_TIMESTAMP="$KERNEL_TIME"
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          cd kernel_workspace/common
+          make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
+          make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image 2>&1 | tail -80
+          ls -l out/arch/arm64/boot/Image
+
+      - name: Self check (SUSFS linked in)
+        run: |
+          set -eux
+          cd kernel_workspace/common
+          CFG=out/.config
+          IMG=out/arch/arm64/boot/Image
+          grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KALLSYMS_ALL=' "$CFG"
+          echo '--- banner ---'
+          strings -n 12 "$IMG" | grep -m1 '^Linux version ' || true
+          echo '--- susfs init string ---'
+          strings -n 8 "$IMG" | grep -m2 'susfs is initialized' || { echo 'ERROR: susfs not linked into Image'; exit 1; }
+          echo '--- manager cert ---'
+          OBJ=$(find out -path '*kernelsu*' -name 'apk_sign.o' | head -n1)
+          echo "OBJ=$OBJ"
+          strings "$OBJ" | grep -i "$MGR_CERT_HASH"
+          echo '--- image sanity ---'
+          echo "magic@0x38 = $(od -An -tx1 -j56 -N4 "$IMG" | tr -d ' \n')"
+          [ "$(od -An -tx1 -j56 -N4 "$IMG" | tr -d ' \n')" = "41524d64" ]
+
+      - name: Repack and sign boot (AOSP testkey)
+        run: |
+          set -eux
+          cd kernel_workspace
+          wget -q "https://github.com/showdo/AOSP-Testkey-BootSigner/archive/refs/heads/main.tar.gz" -O boot_avb_tool.tar.gz
+          mkdir -p boot_avb_tool
+          tar -xzf boot_avb_tool.tar.gz -C boot_avb_tool
+          rm -f boot_avb_tool.tar.gz
+          cp ./common/out/arch/arm64/boot/Image ./boot_avb_tool/AOSP-Testkey-BootSigner-main/kernel
+          cd boot_avb_tool/AOSP-Testkey-BootSigner-main
+          wget -q -O stock-boot.zip https://github.com/xiaoxiaoyu78/Build_Lenovo_sm8750/releases/download/stock-boot-6.6.118-zuxos251/zuxos251-stock-boot.zip
+          unzip -o stock-boot.zip -d stock-boot
+          cp ./stock-boot/boot.img ./boot.img
+          rm -rf stock-boot stock-boot.zip
+          chmod +x ./tools/magiskboot
+          ./tools/magiskboot repack boot.img
+          rm -f ./boot.img kernel
+          mv ./new-boot.img ./boot.img
+          python3 rebuild_avb.py --chained-mode || python3 rebuild_avb.py
+          ls -l boot.img
+          sha256sum boot.img
+          cp boot.img "$GITHUB_WORKSPACE/boot_6.6.89_nova_susfs_builtin_signed.img"
+
+      - name: Upload boot
+        uses: actions/upload-artifact@v5
+        with:
+          name: Boot_6.6.89_Nova_SUSFS_OfficialMgr_AOSP_Signed
+          path: |
+            boot_6.6.89_nova_susfs_builtin_signed.img
+            kernel_workspace/common/out/arch/arm64/boot/Image
+            kernel_workspace/common/out/.config
