@@ -1,9 +1,5 @@
-gh version 2.103.3 (2026-10-26)
-https://github.com/cli/cli/releases/tag/v2.103.3
-failed to run git: fatal: not a git repository (or any of the parent directories): .git
-
-EXIT=1
---- available workflows ---
-393067154
-393067156
-422370251
+https://github.com/xiaoxiaoyu78/Build_Lenovo_sm8750/actions/runs/44270962314
+EXIT=0
+queued		Build_Lenovo_sm8750	Build_Lenovo_sm8750	main	workflow_dispatch	44270962314	0s	2026-11-18T08:54:02Z
+in_progress		ci: 触发工作流 v3（加 -R 修正 not a git repository）	_dispatch_6689	main	push	44270942896	8s	2026-11-18T08:53:54Z
+completed	success	ci: 触发工作流转 v2（输出回写仓库便于排查）	_dispatch_6689	main	push	44270799043	12s	2026-11-18T08:52:54Z
