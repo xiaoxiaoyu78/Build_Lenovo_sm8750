@@ -1,0 +1,171 @@
+name: Nova_Boot_6689
+
+# 6.6.89 + SukiSU-Nova (Fork) 内核源码 + SUSFS，编译并 AOSP 签名 boot
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/_nova_boot_6689.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build_Nova_6.6.89
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      KERNEL_VERSION: '6.6.89'
+      os_patch_level: '2025-06'
+      DEFAULT_SUFFIX: '-android15-8-g14220ae4ce65-ab13680582-4k'
+      KERNEL_TIME: 'Mon Jun 23 07:30:57 UTC 2025'
+      KSU_REPO: 'https://github.com/xiaoxiaoyu78/SukiSU-Nova.git'
+      KSU_VER_BASE: '30996'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install deps and fetch kernel source + toolchain
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends binutils python-is-python3 libssl-dev libelf-dev dos2unix p7zip-full zstd ccache
+          rm -rf kernel_workspace
+          mkdir kernel_workspace
+          cd kernel_workspace
+          aria2c -s16 -x16 -k1M "https://github.com/showdo/Build_Lenovo_sm8750/releases/download/common/${os_patch_level}.tar.gz" -o common.tar.gz
+          mkdir -p common
+          tar -xzf common.tar.gz -C common
+          rm -f common.tar.gz
+          mkdir -p clang18
+          aria2c -s16 -x16 -k1M https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang18-r510928/clang-r510928.zip -o clang.zip
+          unzip -q clang.zip -d clang18
+          rm -f clang.zip
+          aria2c -s16 -x16 -k1M https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang18-r510928/build-tools.zip -o build-tools.zip
+          unzip -q build-tools.zip
+          rm -f build-tools.zip
+          rm -f common/android/abi_gki_protected_exports_* || true
+          while IFS= read -r -d '' f; do
+            sed -i 's/ -dirty//g' "$f"
+            sed -i '$i res=$(echo "$res" | sed '\''s/-dirty//g'\'')' "$f"
+          done < <(grep -rlZ 'setlocalversion' common/scripts common/Makefile 2>/dev/null || true)
+          echo "source ready"
+          du -sh common | tail -n1
+
+      - name: Set up SukiSU-Nova kernel source
+        id: nova
+        run: |
+          set -eux
+          cd kernel_workspace
+          git clone "${KSU_REPO}" ./KernelSU
+          cd ./KernelSU
+          git log -1 --format='%H %s'
+          cd ..
+          ln -sf ../../KernelSU/kernel ./common/drivers/kernelsu
+          grep -q 'kernelsu' ./common/drivers/Makefile || printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> ./common/drivers/Makefile
+          grep -q 'drivers/kernelsu/Kconfig' ./common/drivers/Kconfig || sed -i '/endmenu/i source "drivers/kernelsu/Kconfig"' ./common/drivers/Kconfig
+          COMMITS=$(git -C ./KernelSU rev-list --count HEAD)
+          KSU_VERSION=$((KSU_VER_BASE + COMMITS))
+          echo "KSUVER=$KSU_VERSION" >> "$GITHUB_ENV"
+          echo "KSU_COMMITS=$COMMITS" >> "$GITHUB_OUTPUT"
+          echo "nova kernel source ready, version=$KSU_VERSION (commits=$COMMITS)"
+          ls -l ./common/drivers/kernelsu
+          tail -3 ./common/drivers/Makefile
+
+      - name: Set up SUSFS
+        run: |
+          set -eux
+          cd kernel_workspace
+          git clone --depth=1 https://github.com/cctv18/susfs4oki.git susfs4ksu -b oki-android15-6.6
+          wget https://raw.githubusercontent.com/cctv18/oppo_oplus_realme_sm8750/main/other_patch/69_hide_stuff.patch -O ./common/69_hide_stuff.patch
+          cp ./susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./common/
+          cp ./susfs4ksu/kernel_patches/fs/* ./common/fs/
+          cp ./susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+          cd ./common
+          patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
+          patch -p1 -N -F 3 < 69_hide_stuff.patch || true
+          echo "susfs patches applied"
+
+      - name: Configure gki_defconfig
+        run: |
+          set -eux
+          cd kernel_workspace
+          DEFCONFIG=./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_MAP=y" >> "$DEFCONFIG"
+          echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG"
+          echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG"
+          echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y" >> "$DEFCONFIG"
+          sudo sed -i 's/check_defconfig//' ./common/build.config.gki
+          ESCAPED_SUFFIX=$(printf '%s\n' "$DEFAULT_SUFFIX" | sed 's:[\/&]:\\&:g')
+          sudo sed -i "s/-4k/$ESCAPED_SUFFIX/g" "$DEFCONFIG"
+          sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
+          echo "defconfig ready"
+          grep -n 'CONFIG_KSU' "$DEFCONFIG" | head -n 5
+
+      - name: Build kernel Image
+        run: |
+          set -eux
+          WORKDIR="$(pwd)"
+          export PATH="$WORKDIR/kernel_workspace/clang18/bin:$WORKDIR/kernel_workspace/build-tools/bin:/usr/lib/ccache:$PATH"
+          clang --version | head -n1
+          export CCACHE_DIR="$HOME/.ccache_6689"
+          export CCACHE_MAXSIZE=6G
+          export CCACHE_COMPILERCHECK=none
+          export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          export CCACHE_NOHASHDIR=true
+          export CCACHE_NOHARDLINK=true
+          export KBUILD_BUILD_TIMESTAMP="$KERNEL_TIME"
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          cd kernel_workspace/common
+          make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
+          make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
+          ls -l out/arch/arm64/boot/Image
+          ccache -s | head -n 10
+
+      - name: Repack and sign boot (AOSP testkey)
+        run: |
+          set -eux
+          cd kernel_workspace
+          wget -q "https://github.com/showdo/AOSP-Testkey-BootSigner/archive/refs/heads/main.tar.gz" -O boot_avb_tool.tar.gz
+          mkdir -p boot_avb_tool
+          tar -xzf boot_avb_tool.tar.gz -C boot_avb_tool
+          rm -f boot_avb_tool.tar.gz
+          cp ./common/out/arch/arm64/boot/Image ./boot_avb_tool/AOSP-Testkey-BootSigner-main/kernel
+          cd boot_avb_tool/AOSP-Testkey-BootSigner-main
+          wget -q -O stock-boot.zip https://github.com/xiaoxiaoyu78/Build_Lenovo_sm8750/releases/download/stock-boot-6.6.118-zuxos251/zuxos251-stock-boot.zip
+          unzip -o stock-boot.zip -d stock-boot
+          cp ./stock-boot/boot.img ./boot.img
+          rm -rf stock-boot stock-boot.zip
+          chmod +x ./tools/magiskboot
+          ./tools/magiskboot repack boot.img
+          rm -f ./boot.img kernel
+          mv ./new-boot.img ./boot.img
+          python3 rebuild_avb.py --chained-mode || python3 rebuild_avb.py
+          ls -l boot.img
+          sha256sum boot.img
+
+      - name: Upload boot
+        uses: actions/upload-artifact@v5
+        with:
+          name: Boot_6.6.89_SukiSU_Nova_SUSFS_AOSP_Signed
+          path: |
+            kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/boot.img
+            kernel_workspace/common/out/arch/arm64/boot/Image
