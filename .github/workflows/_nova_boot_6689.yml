@@ -1,6 +1,7 @@
 name: Nova_Boot_6689
 
 # 6.6.89 + SukiSU-Nova(Fork) 内核源码 + CONFIG_KPM（Nova 的 SUSFS 以 KPM 模块形式提供）
+# 并把内核内置的管理器签名期望改成本人固定 keystore 的证书（DER 803 B / 0x323）
 on:
   push:
     branches: [main]
@@ -22,6 +23,8 @@ jobs:
       DEFAULT_SUFFIX: '-android15-8-g14220ae4ce65-ab13680582-4k'
       KERNEL_TIME: 'Mon Jun 23 07:30:57 UTC 2025'
       KSU_REPO: 'https://github.com/xiaoxiaoyu78/SukiSU-Nova.git'
+      MGR_CERT_SIZE: '0x323'
+      MGR_CERT_HASH: '569252d484257f6893731da4049c06515df67fd1cac490e33f541bce716e2d88'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -56,6 +59,11 @@ jobs:
           cd kernel_workspace
           git clone "${KSU_REPO}" ./KernelSU
           git -C ./KernelSU log -1 --format='%H %s'
+          echo '--- patch manager cert expectation ---'
+          grep -n 'KSU_EXPECTED' ./KernelSU/kernel/Kbuild || true
+          sed -i "s|KSU_EXPECTED_SIZE ?= .*|KSU_EXPECTED_SIZE ?= ${MGR_CERT_SIZE}|" ./KernelSU/kernel/Kbuild
+          sed -i "s|KSU_EXPECTED_HASH ?= .*|KSU_EXPECTED_HASH ?= ${MGR_CERT_HASH}|" ./KernelSU/kernel/Kbuild
+          grep -n 'KSU_EXPECTED' ./KernelSU/kernel/Kbuild
           ln -sf ../../KernelSU/kernel ./common/drivers/kernelsu
           grep -q 'kernelsu' ./common/drivers/Makefile || printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> ./common/drivers/Makefile
           grep -q 'drivers/kernelsu/Kconfig' ./common/drivers/Kconfig || sed -i '/endmenu/i source "drivers/kernelsu/Kconfig"' ./common/drivers/Kconfig
@@ -101,6 +109,11 @@ jobs:
           make -j"$(nproc --all)" LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC="ccache clang" LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
           ls -l out/arch/arm64/boot/Image
           grep -E 'CONFIG_KSU=|CONFIG_KPM=|CONFIG_KALLSYMS_ALL=' out/.config
+          echo '--- verify manager cert hash is compiled in ---'
+          OBJ=$(find out -path '*kernelsu*' -name 'apk_sign.o' | head -n1)
+          echo "OBJ=$OBJ"
+          strings "$OBJ" | grep -i "$MGR_CERT_HASH"
+          echo 'manager cert expectation compiled OK'
 
       - name: Repack and sign boot (AOSP testkey)
         run: |
@@ -127,7 +140,7 @@ jobs:
       - name: Upload boot
         uses: actions/upload-artifact@v5
         with:
-          name: Boot_6.6.89_SukiSU_Nova_KPM_AOSP_Signed
+          name: Boot_6.6.89_SukiSU_Nova_KPM_fixedmgr_AOSP_Signed
           path: |
             kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/boot.img
             kernel_workspace/common/out/arch/arm64/boot/Image
