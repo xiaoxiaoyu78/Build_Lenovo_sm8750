@@ -9,16 +9,19 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 jobs:
   dispatch:
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch Build_Lenovo_sm8750 (6.6.89)
+      - name: Dispatch build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
+          set +e
+          gh --version > out.txt 2>&1
           gh workflow run Build_Lenovo_sm8750.yml --ref main \
             -f kernel_version=6.6.89 \
             -f enable_susfs=true \
@@ -26,4 +29,10 @@ jobs:
             -f enable_ReKernel=true \
             -f enable_Adios=true \
             -f enable_droidspaces=false \
-            -f enable_signed=true
+            -f enable_signed=true >> out.txt 2>&1
+          echo "EXIT=$?" >> out.txt
+          echo "--- available workflows ---" >> out.txt
+          gh api --method GET "/repos/$REPO/actions/workflows" --jq '.workflows[] | .id' >> out.txt 2>&1
+          B64=$(base64 -w0 out.txt)
+          gh api --method PUT "/repos/$REPO/contents/ci-dispatch-status.txt" \
+            -f message="ci: dispatch status" -f content="$B64" -f branch=main >> out.txt 2>&1 || true
