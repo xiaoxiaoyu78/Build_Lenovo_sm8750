@@ -1,0 +1,29 @@
+name: _dispatch_6689
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/_dispatch_6689.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch Build_Lenovo_sm8750 (6.6.89)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run Build_Lenovo_sm8750.yml --ref main \
+            -f kernel_version=6.6.89 \
+            -f enable_susfs=true \
+            -f enable_kpm=false \
+            -f enable_ReKernel=true \
+            -f enable_Adios=true \
+            -f enable_droidspaces=false \
+            -f enable_signed=true
