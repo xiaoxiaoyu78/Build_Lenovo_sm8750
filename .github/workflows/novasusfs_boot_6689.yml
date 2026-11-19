@@ -109,6 +109,12 @@ jobs:
           grep -q 'susfs_init' fs/susfs.c
           grep -m1 'SUSFS_VERSION' include/linux/susfs.h
 
+      - name: Patch access oracle seqno to stock value
+        run: |
+          set -eux
+          python3 "$GITHUB_WORKSPACE/.github/scripts/patch_access_seqno.py" kernel_workspace/common/security/selinux/selinuxfs.c
+          grep -n -A3 'avd.seqno = 1;' kernel_workspace/common/security/selinux/selinuxfs.c
+
       - name: Configure gki_defconfig
         run: |
           set -eux
@@ -195,7 +201,7 @@ jobs:
           (python3 rebuild_avb.py --chained-mode 2>&1 || python3 rebuild_avb.py 2>&1) | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
           ls -l boot.img | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
           sha256sum boot.img | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
-          cp boot.img "$GITHUB_WORKSPACE/boot_6.6.89_nova_susfs_builtin_signed.img"
+          cp boot.img "$GITHUB_WORKSPACE/boot_6.6.89_nova_susfs_builtin_seqnofix_signed.img"
           echo "REPACK_OK" | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
 
       - name: Upload boot
@@ -204,7 +210,7 @@ jobs:
         with:
           name: Boot_6.6.89_Nova_SUSFS_OfficialMgr_AOSP_Signed
           path: |
-            boot_6.6.89_nova_susfs_builtin_signed.img
+            boot_6.6.89_nova_susfs_builtin_seqnofix_signed.img
             logs/
             kernel_workspace/common/out/arch/arm64/boot/Image
             kernel_workspace/common/out/.config
