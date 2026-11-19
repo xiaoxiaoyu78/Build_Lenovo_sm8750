@@ -108,12 +108,9 @@ jobs:
           test -f fs/susfs.c
           grep -q 'susfs_init' fs/susfs.c
           grep -m1 'SUSFS_VERSION' include/linux/susfs.h
-
-      - name: Patch access oracle seqno to stock value
-        run: |
-          set -eux
-          python3 "$GITHUB_WORKSPACE/.github/scripts/patch_access_seqno.py" kernel_workspace/common/security/selinux/selinuxfs.c
-          grep -n -A3 'avd.seqno = 1;' kernel_workspace/common/security/selinux/selinuxfs.c
+          echo '--- access oracle seqno parity ---'
+          python3 "$GITHUB_WORKSPACE/.github/scripts/patch_access_seqno.py" security/selinux/selinuxfs.c
+          grep -n -A3 'avd.seqno = 1;' security/selinux/selinuxfs.c
 
       - name: Configure gki_defconfig
         run: |
