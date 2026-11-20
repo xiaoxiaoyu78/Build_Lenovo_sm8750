@@ -2,7 +2,8 @@ name: Nova_Boot_6689_SUSFS
 
 # 6.6.89 + SukiSU-Nova `builtin` 分支（in-tree SUSFS 胶水，Kconfig 自带 CONFIG_KSU_SUSFS）
 # + susfs4ksu gki-android15-6.6 内核侧补丁（fs/susfs.c / include/linux/susfs*.h / 50_add_susfs）
-# 不启用 KPM；管理器签名期望保持 builtin 默认（官方 com.sukisu.nova 35025 直接配对）
+# 启用 KPM（CONFIG_KPM=y，SukiSU-Nova 内核 extension/kpm 装载面）；管理器签名期望保持 builtin 默认
+# （官方 com.sukisu.nova 35025 自带 KPM 页、assets/kpm 与 kpm 子命令，可直接配对）
 on:
   push:
     branches: [main]
@@ -63,9 +64,10 @@ jobs:
           cd kernel_workspace
           git clone --depth=1 -b "$KSU_BRANCH" "$KSU_REPO" ./KernelSU
           git -C ./KernelSU log -1 --format='%H %s'
-          for sym in KSU KSU_SUSFS; do
+          for sym in KSU KSU_SUSFS KPM; do
             grep -q "^config $sym$" ./KernelSU/kernel/Kconfig || { echo "ERROR: builtin lacks config $sym"; exit 1; }
           done
+          test -f ./KernelSU/kernel/extension/kpm/kpm.c || { echo 'ERROR: KPM source missing'; exit 1; }
           echo '--- manager cert expectation (must stay default/official) ---'
           grep -n '947ae944' ./KernelSU/kernel/manager/apk_sign.c
           ln -sf ../../KernelSU/kernel ./common/drivers/kernelsu
@@ -117,7 +119,7 @@ jobs:
           set -eux
           cd kernel_workspace
           DEFCONFIG=./common/arch/arm64/configs/gki_defconfig
-          for opt in CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KALLSYMS=y CONFIG_KALLSYMS_ALL=y \
+          for opt in CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KPM=y CONFIG_KALLSYMS=y CONFIG_KALLSYMS_ALL=y \
                      CONFIG_TMPFS_XATTR=y CONFIG_TMPFS_POSIX_ACL=y CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y; do
             grep -qx "$opt" "$DEFCONFIG" || echo "$opt" >> "$DEFCONFIG"
           done
@@ -157,9 +159,11 @@ jobs:
           {
             echo '=== config ==='
             ls -l "$CFG"
-            grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KSU_SUSFS_ENABLE_LOG=|CONFIG_KALLSYMS_ALL=' "$CFG"
+            grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KSU_SUSFS_ENABLE_LOG=|CONFIG_KALLSYMS_ALL=|CONFIG_KPM=' "$CFG"
             echo '=== banner ==='
             strings -n 12 "$IMG" | grep -m1 '^Linux version ' || true
+            echo '=== kpm symbols (System.map) ==='
+            grep -E ' (do_kpm|sukisu_kpm_bridge)$' out/System.map | head -5 || echo 'WARN: System.map check unavailable'
             echo '=== susfs init string ==='
             strings -n 6 "$IMG" | grep -m2 'susfs is initialized' || true
             echo '=== manager cert hash in Image ==='
@@ -171,6 +175,7 @@ jobs:
           echo '--- hard asserts ---'
           grep -qx 'CONFIG_KSU=y' "$CFG"
           grep -qx 'CONFIG_KSU_SUSFS=y' "$CFG"
+          grep -qx 'CONFIG_KPM=y' "$CFG"
           strings -n 6 "$IMG" | grep -q 'susfs is initialized'
           strings -n 6 "$IMG" | grep -q "$MGR_CERT_HASH"
           [ "$(od -An -tx1 -j56 -N4 "$IMG" | tr -d ' \n')" = "41524d64" ]
@@ -198,16 +203,16 @@ jobs:
           (python3 rebuild_avb.py --chained-mode 2>&1 || python3 rebuild_avb.py 2>&1) | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
           ls -l boot.img | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
           sha256sum boot.img | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
-          cp boot.img "$GITHUB_WORKSPACE/boot_6.6.89_nova_susfs_builtin_seqnofix_signed.img"
+          cp boot.img "$GITHUB_WORKSPACE/boot_6.6.89_nova_susfs_kpm_seqnofix_signed.img"
           echo "REPACK_OK" | tee -a "$GITHUB_WORKSPACE/logs/repack.txt"
 
       - name: Upload boot
         if: success()
         uses: actions/upload-artifact@v5
         with:
-          name: Boot_6.6.89_Nova_SUSFS_OfficialMgr_AOSP_Signed
+          name: Boot_6.6.89_Nova_SUSFS_KPM_AOSP_Signed
           path: |
-            boot_6.6.89_nova_susfs_builtin_seqnofix_signed.img
+            boot_6.6.89_nova_susfs_kpm_seqnofix_signed.img
             logs/
             kernel_workspace/common/out/arch/arm64/boot/Image
             kernel_workspace/common/out/.config
