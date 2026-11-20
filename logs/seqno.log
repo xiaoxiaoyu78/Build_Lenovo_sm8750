@@ -1,0 +1,3 @@
+file: security/selinux/selinuxfs.c
+hit count: 1
+RESULT: OK

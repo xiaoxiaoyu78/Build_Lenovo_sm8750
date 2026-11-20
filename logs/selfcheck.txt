@@ -1,0 +1,38 @@
++ echo '=== config ==='
+=== config ===
++ ls -l out/.config
+-rw-r--r-- 1 runner runner 211906 Nov 20 11:10 out/.config
++ grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KSU_SUSFS_ENABLE_LOG=|CONFIG_KALLSYMS_ALL=|CONFIG_KPM=' out/.config
+CONFIG_KALLSYMS_ALL=y
+CONFIG_KSU=y
+CONFIG_KPM=y
+CONFIG_KSU_SUSFS=y
+CONFIG_KSU_SUSFS_ENABLE_LOG=y
++ echo '=== banner ==='
+=== banner ===
++ strings -n 12 out/arch/arm64/boot/Image
++ grep -m1 '^Linux version '
+Linux version 6.6.89-android15-8-g14220ae4ce65-ab13680582-4k (runner@runnervm8axu0) (Android (11368308, +pgo, +bolt, +lto, +mlgo, based on r510928) clang version 18.0.0 (https://android.googlesource.com/toolchain/llvm-project 477610d4d0d988e69dbc3fae4fe86bff3f07f2b5), LLD 18.0.0) # SMP PREEMPT Mon Jun 23 07:30:57 UTC 2025
++ echo '=== kpm symbols (System.map) ==='
+=== kpm symbols (System.map) ===
++ head -5
++ grep -E ' (do_kpm|sukisu_kpm_bridge)$' out/System.map
+ffffffc080cf1868 T sukisu_kpm_bridge
+ffffffc080cf1b20 T do_kpm
++ echo '=== susfs init string ==='
+=== susfs init string ===
++ strings -n 6 out/arch/arm64/boot/Image
++ grep -m2 'susfs is initialized'
+6susfs:[%u][%d][%s] susfs is initialized! version: v2.4.0 
++ echo '=== manager cert hash in Image ==='
+=== manager cert hash in Image ===
++ strings -n 6 out/arch/arm64/boot/Image
++ grep -c 947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef
+1
++ echo '=== image magic ==='
+=== image magic ===
++ od -An -tx1 -j56 -N4 out/arch/arm64/boot/Image
++ tr -d ' \n'
+41524d64+ echo
+
+SELFCHECK_OK

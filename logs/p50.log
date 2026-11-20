@@ -1,0 +1,89 @@
+patching file block/ioprio.c
+patching file drivers/input/input.c
+patching file fs/Makefile
+patching file fs/exec.c
+Hunk #1 succeeded at 67 with fuzz 2.
+Hunk #2 succeeded at 1904 (offset -25 lines).
+Hunk #3 succeeded at 1928 (offset -25 lines).
+Hunk #4 succeeded at 2030 (offset -25 lines).
+patching file fs/namei.c
+Hunk #2 succeeded at 1588 (offset -8 lines).
+Hunk #3 succeeded at 1613 (offset -8 lines).
+Hunk #4 succeeded at 1625 (offset -8 lines).
+Hunk #5 succeeded at 1636 (offset -8 lines).
+Hunk #6 succeeded at 1657 (offset -8 lines).
+Hunk #7 succeeded at 1668 (offset -8 lines).
+Hunk #8 succeeded at 1701 (offset -8 lines).
+Hunk #9 succeeded at 1732 (offset -8 lines).
+Hunk #10 succeeded at 1753 (offset -8 lines).
+Hunk #11 succeeded at 1772 (offset -8 lines).
+Hunk #12 succeeded at 2086 (offset -8 lines).
+Hunk #13 succeeded at 2358 (offset -8 lines).
+Hunk #14 succeeded at 2556 (offset -8 lines).
+Hunk #15 succeeded at 3506 (offset -8 lines).
+Hunk #16 succeeded at 3637 (offset -8 lines).
+Hunk #17 succeeded at 3866 (offset -8 lines).
+Hunk #18 succeeded at 3905 (offset -8 lines).
+Hunk #19 succeeded at 3976 (offset -8 lines).
+Hunk #20 succeeded at 5311 (offset -8 lines).
+Hunk #21 succeeded at 5325 (offset -8 lines).
+Hunk #22 succeeded at 5352 (offset -8 lines).
+patching file fs/namespace.c
+Hunk #2 succeeded at 148 (offset -9 lines).
+Hunk #3 succeeded at 160 (offset -9 lines).
+Hunk #4 succeeded at 228 (offset -9 lines).
+Hunk #5 succeeded at 837 (offset -5 lines).
+Hunk #6 succeeded at 1248 (offset -5 lines).
+Hunk #7 succeeded at 1344 (offset -5 lines).
+Hunk #8 succeeded at 1397 (offset -5 lines).
+Hunk #9 succeeded at 4009 (offset -28 lines).
+Hunk #10 succeeded at 5267 (offset -28 lines).
+patching file fs/notify/fdinfo.c
+Hunk #2 succeeded at 25 (offset -1 lines).
+Hunk #3 succeeded at 90 (offset -6 lines).
+Hunk #4 succeeded at 105 (offset -6 lines).
+patching file fs/open.c
+patching file fs/proc/base.c
+Hunk #1 succeeded at 101 with fuzz 3.
+Hunk #2 succeeded at 1838 (offset -1 lines).
+Hunk #3 succeeded at 1851 (offset -1 lines).
+Hunk #4 succeeded at 2485 (offset -1 lines).
+patching file fs/proc/bootconfig.c
+patching file fs/proc/fd.c
+patching file fs/proc/task_mmu.c
+Hunk #2 succeeded at 263 (offset -129 lines).
+Hunk #3 succeeded at 286 (offset -129 lines).
+Hunk #4 succeeded at 931 with fuzz 1 (offset -148 lines).
+Hunk #5 succeeded at 1001 (offset -148 lines).
+Hunk #6 succeeded at 1074 (offset -148 lines).
+Hunk #7 succeeded at 1860 (offset -148 lines).
+Hunk #8 succeeded at 1872 (offset -148 lines).
+patching file fs/proc_namespace.c
+patching file fs/read_write.c
+patching file fs/readdir.c
+patching file fs/stat.c
+patching file fs/statfs.c
+patching file fs/super.c
+Hunk #2 succeeded at 1260 (offset -3 lines).
+Hunk #3 succeeded at 1280 (offset -3 lines).
+patching file kernel/kallsyms.c
+Hunk #2 succeeded at 802 (offset -3 lines).
+patching file kernel/reboot.c
+patching file kernel/sys.c
+patching file mm/memory.c
+Hunk #1 succeeded at 79 (offset -3 lines).
+Hunk #2 succeeded at 6399 (offset -132 lines).
+patching file security/selinux/avc.c
+Hunk #1 succeeded at 47 (offset -1 lines).
+Hunk #2 succeeded at 725 (offset -1 lines).
+patching file security/selinux/hooks.c
+Hunk #2 succeeded at 3322 (offset -7 lines).
+Hunk #3 succeeded at 6663 (offset -7 lines).
+Hunk #4 succeeded at 7356 (offset -7 lines).
+Hunk #5 succeeded at 7439 (offset -7 lines).
+patching file security/selinux/selinuxfs.c
+Hunk #3 succeeded at 703 (offset 24 lines).
+Hunk #4 succeeded at 886 (offset 24 lines).
+Hunk #5 succeeded at 993 (offset 24 lines).
+patching file security/selinux/ss/services.c
+patching file security/selinux/status.c

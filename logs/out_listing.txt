@@ -1,0 +1,30 @@
+total 602492
+-rw-r--r--  1 runner runner        73 Nov 20 11:10 Makefile
+-rw-r--r--  1 runner runner   5163556 Nov 20 11:26 System.map
+drwxr-xr-x  4 runner runner      4096 Nov 20 11:10 arch
+drwxr-xr-x  3 runner runner      4096 Nov 20 11:16 block
+-rw-r--r--  1 runner runner    235552 Nov 20 11:25 built-in.a
+drwxr-xr-x  2 runner runner      4096 Nov 20 11:11 certs
+drwxr-xr-x  3 runner runner     12288 Nov 20 11:15 crypto
+drwxr-xr-x 89 runner runner      4096 Nov 20 11:25 drivers
+drwxr-xr-x 29 runner runner     12288 Nov 20 11:17 fs
+drwxr-xr-x  4 runner runner      4096 Nov 20 11:10 include
+drwxr-xr-x  2 runner runner      4096 Nov 20 11:25 init
+drwxr-xr-x  2 runner runner      4096 Nov 20 11:16 io_uring
+drwxr-xr-x  2 runner runner      4096 Nov 20 11:14 ipc
+drwxr-xr-x 18 runner runner     12288 Nov 20 11:15 kernel
+drwxr-xr-x 14 runner runner     16384 Nov 20 11:18 lib
+drwxr-xr-x  5 runner runner     12288 Nov 20 11:14 mm
+-rw-r--r--  1 runner runner     21317 Nov 20 11:25 modules.builtin
+-rw-r--r--  1 runner runner    142445 Nov 20 11:25 modules.builtin.modinfo
+drwxr-xr-x 36 runner runner      4096 Nov 20 11:23 net
+drwxr-xr-x  8 runner runner      4096 Nov 20 11:10 scripts
+drwxr-xr-x  6 runner runner      4096 Nov 20 11:14 security
+drwxr-xr-x 24 runner runner      4096 Nov 20 11:17 sound
+lrwxrwxrwx  1 runner runner         2 Nov 20 11:10 source -> ..
+drwxr-xr-x  3 runner runner      4096 Nov 20 11:10 tools
+drwxr-xr-x  3 runner runner      4096 Nov 20 11:10 usr
+drwxr-xr-x  4 runner runner      4096 Nov 20 11:17 virt
+-rwxr-xr-x  1 runner runner 179736504 Nov 20 11:26 vmlinux
+-rw-r--r--  1 runner runner   1437572 Nov 20 11:25 vmlinux.a
+-rw-r--r--  1 runner runner 429109984 Nov 20 11:25 vmlinux.o

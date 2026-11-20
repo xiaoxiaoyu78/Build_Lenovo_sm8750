@@ -1,0 +1,162 @@
+Parsing boot image: [boot.img]
+HEADER_VER      [4]
+KERNEL_SZ       [36731392]
+RAMDISK_SZ      [0]
+PAGESIZE        [4096]
+CMDLINE         []
+KERNEL_DTB_SZ   [2321216]
+KERNEL_FMT      [raw]
+unexpected ASN.1 DER tag: expected SEQUENCE, got APPLICATION [1] (primitive)
+VBMETA
+Repack to boot image: [new-boot.img]
+HEADER_VER      [4]
+KERNEL_SZ       [36792832]
+RAMDISK_SZ      [0]
+PAGESIZE        [4096]
+CMDLINE         []
+[INFO] 链式分区模式已启用，将跳过vbmeta.img检查
+当前工作目录: /home/runner/work/Build_Lenovo_sm8750/Build_Lenovo_sm8750/kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main
+[检测] 发现私钥: /home/runner/work/Build_Lenovo_sm8750/Build_Lenovo_sm8750/kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/tools/pem/testkey_rsa4096.pem
+[检测] 发现私钥: /home/runner/work/Build_Lenovo_sm8750/Build_Lenovo_sm8750/kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/tools/pem/testkey_rsa2048.pem
+=== AVB重建开始 ===
+[INFO] 链式分区模式已启用
+
+=== 创建备份: backup_20261120_112611 ===
+[BACKUP] boot.img -> backup_20261120_112611/boot.img
+[检测] 发现分区镜像: boot -> boot.img
+[INFO] 解析 boot.img 信息
+[CMD] /usr/bin/python3 /home/runner/work/Build_Lenovo_sm8750/Build_Lenovo_sm8750/kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/tools/avbtool.py info_image --image boot.img
+[OUTPUT]
+Footer version:           1.0
+Image size:               100663296 bytes
+Original image size:      36798464 bytes
+VBMeta offset:            36798464
+VBMeta size:              2752 bytes
+--
+Minimum libavb version:   1.0
+Header Block:             256 bytes
+Authentication Block:     576 bytes
+Auxiliary Block:          1920 bytes
+Public key (sha1):        db99f40a4a8ac280d9bbe6b2f3319328b0273462
+Algorithm:                SHA256_RSA4096
+Rollback Index:           0
+Flags:                    0
+Rollback Index Location:  0
+Release String:           'avbtool 1.3.0'
+Descriptors:
+    Hash descriptor:
+      Image Size:            36753408 bytes
+      Hash Algorithm:        sha256
+      Partition Name:        boot
+      Salt:                  7b9f89ccfbc6e6738fa4d4b1e6f8fcd1fde95be093f42270e084e513a0d9d85b
+      Digest:                cb85f9cf4b33b54d8284729122be2aaa8d1a137cd5633d90ad67434187cb462c
+      Flags:                 0
+    Prop: com.android.build.boot.os_version -> '16'
+    Prop: com.android.build.boot.fingerprint -> 'vivo/DPD2540/DPD2540:16/BP2A.250605.031.A3_V000L1/compiler260617213852:user/release-keys'
+    Prop: com.android.build.boot.security_patch -> '2026-05-01'
+    Prop: com.android.build.boot.os_version -> '16'
+    Prop: com.android.build.boot.fingerprint -> 'vivo/DPD2540/DPD2540:16/BP2A.250605.031.A3_V000L1/compiler260617213852:user/release-keys'
+    Prop: com.android.build.boot.security_patch -> '2026-05-01'
+
+[INFO] boot 是链式分区
+
+=== 重建分区: boot ===
+[INFO] 解析 boot.img 信息
+[CMD] /usr/bin/python3 /home/runner/work/Build_Lenovo_sm8750/Build_Lenovo_sm8750/kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/tools/avbtool.py info_image --image boot.img
+[OUTPUT]
+Footer version:           1.0
+Image size:               100663296 bytes
+Original image size:      36798464 bytes
+VBMeta offset:            36798464
+VBMeta size:              2752 bytes
+--
+Minimum libavb version:   1.0
+Header Block:             256 bytes
+Authentication Block:     576 bytes
+Auxiliary Block:          1920 bytes
+Public key (sha1):        db99f40a4a8ac280d9bbe6b2f3319328b0273462
+Algorithm:                SHA256_RSA4096
+Rollback Index:           0
+Flags:                    0
+Rollback Index Location:  0
+Release String:           'avbtool 1.3.0'
+Descriptors:
+    Hash descriptor:
+      Image Size:            36753408 bytes
+      Hash Algorithm:        sha256
+      Partition Name:        boot
+      Salt:                  7b9f89ccfbc6e6738fa4d4b1e6f8fcd1fde95be093f42270e084e513a0d9d85b
+      Digest:                cb85f9cf4b33b54d8284729122be2aaa8d1a137cd5633d90ad67434187cb462c
+      Flags:                 0
+    Prop: com.android.build.boot.os_version -> '16'
+    Prop: com.android.build.boot.fingerprint -> 'vivo/DPD2540/DPD2540:16/BP2A.250605.031.A3_V000L1/compiler260617213852:user/release-keys'
+    Prop: com.android.build.boot.security_patch -> '2026-05-01'
+    Prop: com.android.build.boot.os_version -> '16'
+    Prop: com.android.build.boot.fingerprint -> 'vivo/DPD2540/DPD2540:16/BP2A.250605.031.A3_V000L1/compiler260617213852:user/release-keys'
+    Prop: com.android.build.boot.security_patch -> '2026-05-01'
+
+[INFO] 检测到链式分区，算法: SHA256_RSA4096, 回滚索引: 0
+[INFO] 从当前镜像获取分区大小: 100663296 字节
+[INFO] 擦除 boot 的AVB footer
+[CMD] /usr/bin/python3 /home/runner/work/Build_Lenovo_sm8750/Build_Lenovo_sm8750/kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/tools/avbtool.py erase_footer --image boot.img
+[INFO] 重建链式分区 boot
+[INFO] 使用原有salt: 7b9f89ccfbc6e6738fa4d4b1e6f8fcd1fde95be093f42270e084e513a0d9d85b
+[INFO] 算法 SHA256_RSA4096 使用私钥: /home/runner/work/Build_Lenovo_sm8750/Build_Lenovo_sm8750/kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/tools/pem/testkey_rsa4096.pem
+[INFO] 添加属性: com.android.build.boot.os_version = 16
+[INFO] 添加属性: com.android.build.boot.fingerprint = vivo/DPD2540/DPD2540:16/BP2A.250605.031.A3_V000L1/compiler260617213852:user/release-keys
+[INFO] 添加属性: com.android.build.boot.security_patch = 2026-05-01
+[INFO] 添加属性: com.android.build.boot.os_version = 16
+[INFO] 添加属性: com.android.build.boot.fingerprint = vivo/DPD2540/DPD2540:16/BP2A.250605.031.A3_V000L1/compiler260617213852:user/release-keys
+[INFO] 添加属性: com.android.build.boot.security_patch = 2026-05-01
+[INFO] 为链式分区 boot 添加签名footer
+[CMD] /usr/bin/python3 /home/runner/work/Build_Lenovo_sm8750/Build_Lenovo_sm8750/kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/tools/avbtool.py add_hash_footer --image boot.img --partition_name boot --partition_size 100663296 --algorithm SHA256_RSA4096 --key /home/runner/work/Build_Lenovo_sm8750/Build_Lenovo_sm8750/kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/tools/pem/testkey_rsa4096.pem --rollback_index 0 --salt 7b9f89ccfbc6e6738fa4d4b1e6f8fcd1fde95be093f42270e084e513a0d9d85b --prop com.android.build.boot.os_version:16 --prop com.android.build.boot.fingerprint:vivo/DPD2540/DPD2540:16/BP2A.250605.031.A3_V000L1/compiler260617213852:user/release-keys --prop com.android.build.boot.security_patch:2026-05-01 --prop com.android.build.boot.os_version:16 --prop com.android.build.boot.fingerprint:vivo/DPD2540/DPD2540:16/BP2A.250605.031.A3_V000L1/compiler260617213852:user/release-keys --prop com.android.build.boot.security_patch:2026-05-01
+[SUCCESS] 链式分区 boot 重建成功
+
+=== 验证重建结果 ===
+
+[信息] 未找到vbmeta.img（可能是纯链式分区模式）
+[检测] 发现分区镜像: boot -> boot.img
+
+[验证] boot.img:
+[INFO] 解析 boot.img 信息
+[CMD] /usr/bin/python3 /home/runner/work/Build_Lenovo_sm8750/Build_Lenovo_sm8750/kernel_workspace/boot_avb_tool/AOSP-Testkey-BootSigner-main/tools/avbtool.py info_image --image boot.img
+[OUTPUT]
+Footer version:           1.0
+Image size:               100663296 bytes
+Original image size:      36798464 bytes
+VBMeta offset:            36798464
+VBMeta size:              2752 bytes
+--
+Minimum libavb version:   1.0
+Header Block:             256 bytes
+Authentication Block:     576 bytes
+Auxiliary Block:          1920 bytes
+Public key (sha1):        2597c218aae470a130f61162feaae70afd97f011
+Algorithm:                SHA256_RSA4096
+Rollback Index:           0
+Flags:                    0
+Rollback Index Location:  0
+Release String:           'avbtool 1.3.0'
+Descriptors:
+    Hash descriptor:
+      Image Size:            36798464 bytes
+      Hash Algorithm:        sha256
+      Partition Name:        boot
+      Salt:                  7b9f89ccfbc6e6738fa4d4b1e6f8fcd1fde95be093f42270e084e513a0d9d85b
+      Digest:                9b03c4ecb159a34767bdaf84992b387de7a12ca761a45f1aafff7cc11fe151c1
+      Flags:                 0
+    Prop: com.android.build.boot.os_version -> '16'
+    Prop: com.android.build.boot.fingerprint -> 'vivo/DPD2540/DPD2540:16/BP2A.250605.031.A3_V000L1/compiler260617213852:user/release-keys'
+    Prop: com.android.build.boot.security_patch -> '2026-05-01'
+    Prop: com.android.build.boot.os_version -> '16'
+    Prop: com.android.build.boot.fingerprint -> 'vivo/DPD2540/DPD2540:16/BP2A.250605.031.A3_V000L1/compiler260617213852:user/release-keys'
+    Prop: com.android.build.boot.security_patch -> '2026-05-01'
+
+
+=== 重建完成 ===
+备份文件位于: backup_20261120_112611/
+成功重建了 1 个分区
+链式分区模式: 仅处理了独立验证的分区
+-rw-r--r-- 1 runner runner 100663296 Nov 20 11:26 boot.img
+64209b63a843e182f13bdf453d4dc6bf29a8a5c51906275d24a13fe38884ee2a  boot.img
+REPACK_OK
