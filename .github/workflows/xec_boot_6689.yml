@@ -115,6 +115,16 @@ jobs:
           echo '--- access oracle seqno parity ---'
           python3 "$GITHUB_WORKSPACE/.github/scripts/patch_access_seqno.py" security/selinux/selinuxfs.c
           grep -n -A3 'avd.seqno = 1;' security/selinux/selinuxfs.c
+          echo '--- XEC preinit ABI compat ---'
+          # 50_ 的 fs/exec.c 钩子调用旧版 preinit ABI（ksu_setup_preinit_file /
+          # ksu_preinit_handle_post_execveat），XEC 用的是新 ABI
+          # （ksu_preinit_handle_execve）。补丁已用 #ifndef KSU_NO_PREINIT 包住这段，
+          # 在该 TU 定义它即可跳过遗留调用，保留 sucompat execve 钩子。
+          if grep -q 'ksu_setup_preinit_file' fs/exec.c; then
+            grep -q '^#define KSU_NO_PREINIT' fs/exec.c || sed -i '1i #define KSU_NO_PREINIT' fs/exec.c
+          fi
+          grep -n 'KSU_NO_PREINIT' fs/exec.c
+          grep -n 'ksu_handle_execveat_sucompat' fs/exec.c | head -3
 
       - name: Configure gki_defconfig
         run: |
