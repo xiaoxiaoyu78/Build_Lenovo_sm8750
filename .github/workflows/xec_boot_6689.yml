@@ -131,12 +131,13 @@ jobs:
           set -eux
           cd kernel_workspace
           DEFCONFIG=./common/arch/arm64/configs/gki_defconfig
-          for opt in CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KALLSYMS=y CONFIG_KALLSYMS_ALL=y \
+          for opt in CONFIG_KSU=y CONFIG_KSU_SUSFS=y CONFIG_KSU_APATCH_COMPAT=y \
+                     CONFIG_KALLSYMS=y CONFIG_KALLSYMS_ALL=y \
                      CONFIG_TMPFS_XATTR=y CONFIG_TMPFS_POSIX_ACL=y CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y; do
             grep -qx "$opt" "$DEFCONFIG" || echo "$opt" >> "$DEFCONFIG"
           done
           sudo sed -i 's/check_defconfig//' ./common/build.config.gki
-          ESCAPED_SUFFIX=$(printf '%s\n' "$DEFAULT_SUFFIX" | sed 's:[\/&]:\\&:g')
+          ESCAPED_SUFFIX=$(printf '%s\n' "$DEFAULT_SUFFIX" | sed 's:[/&]:\\&:g')
           sudo sed -i "s/-4k/$ESCAPED_SUFFIX/g" "$DEFCONFIG"
           sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
           grep -n 'CONFIG_KSU\|CONFIG_KALLSYMS_ALL\|LOCALVERSION' "$DEFCONFIG"
@@ -171,7 +172,7 @@ jobs:
           {
             echo '=== config ==='
             ls -l "$CFG"
-            grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KSU_SUSFS_ENABLE_LOG=|CONFIG_KALLSYMS_ALL=' "$CFG"
+            grep -E 'CONFIG_KSU=|CONFIG_KSU_SUSFS=|CONFIG_KSU_SUSFS_ENABLE_LOG=|CONFIG_KSU_APATCH_COMPAT=|CONFIG_KALLSYMS_ALL=' "$CFG"
             echo '=== banner ==='
             strings -n 12 "$IMG" | grep -m1 '^Linux version ' || true
             echo '=== susfs init string ==='
@@ -187,6 +188,9 @@ jobs:
           echo '--- hard asserts ---'
           grep -qx 'CONFIG_KSU=y' "$CFG"
           grep -qx 'CONFIG_KSU_SUSFS=y' "$CFG"
+          grep -qx 'CONFIG_KSU_APATCH_COMPAT=y' "$CFG"
+          echo '=== apatch compat config ==='
+          grep -c 'CONFIG_KSU_APATCH_COMPAT=y' "$CFG"
           strings -n 6 "$IMG" | grep -q 'susfs is initialized'
           strings -n 6 "$IMG" | grep -q "$MGR_CERT_HASH"
           [ "$(od -An -tx1 -j56 -N4 "$IMG" | tr -d ' \n')" = "41524d64" ]
