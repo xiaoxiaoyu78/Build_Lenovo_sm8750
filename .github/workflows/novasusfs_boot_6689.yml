@@ -4,6 +4,7 @@ name: Nova_Boot_6689_SUSFS
 # + susfs4ksu gki-android15-6.6 内核侧补丁（fs/susfs.c / include/linux/susfs*.h / 50_add_susfs）
 # 启用 KPM（CONFIG_KPM=y，SukiSU-Nova 内核 extension/kpm 装载面）；管理器签名期望保持 builtin 默认
 # （官方 com.sukisu.nova 35025 自带 KPM 页、assets/kpm 与 kpm 子命令，可直接配对）
+# 重编以配对 v3.0.0-r1 35061（builtin head 4bec532d，管理器证书 0x35c / 947ae944…）
 on:
   push:
     branches: [main]
